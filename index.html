@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1b2a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="时空桌面钟" />
+  <title>时空桌面钟</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./assets/icon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-theme="aurora" data-font="avenir">
+  <div class="bg-layer" aria-hidden="true">
+    <span class="blob blob-a"></span>
+    <span class="blob blob-b"></span>
+    <span class="blob blob-c"></span>
+  </div>
+
+  <main class="dashboard">
+    <section class="clock-panel glass">
+      <button id="settingsBtn" class="settings-btn" aria-label="打开设置">设置</button>
+      <p id="dateLine" class="date-line">--</p>
+      <div class="clock-wrap">
+        <h1 id="clockTime" class="clock-time">00:00:00</h1>
+        <svg class="second-ring" viewBox="0 0 220 220" aria-hidden="true">
+          <circle class="ring-bg" cx="110" cy="110" r="98"></circle>
+          <circle id="ringProgress" class="ring-progress" cx="110" cy="110" r="98"></circle>
+        </svg>
+      </div>
+      <p id="tzLine" class="tz-line">时区：--</p>
+    </section>
+
+    <section class="info-grid">
+      <article class="card glass weather-card" id="weatherCard">
+        <header class="card-head">
+          <h2>天气与空气质量</h2>
+          <span id="locationName" class="badge">定位中...</span>
+        </header>
+        <div class="weather-now">
+          <div class="weather-overview">
+            <div id="weatherVisual" class="weather-visual state-clear" aria-hidden="true">
+              <span class="sun-core"></span>
+              <span class="sun-rays"></span>
+              <span class="cloud cloud-a"></span>
+              <span class="cloud cloud-b"></span>
+              <span class="rain rain-a"></span>
+              <span class="rain rain-b"></span>
+              <span class="rain rain-c"></span>
+              <span class="snow snow-a"></span>
+              <span class="snow snow-b"></span>
+              <span class="snow snow-c"></span>
+              <span class="bolt"></span>
+              <span class="mist"></span>
+            </div>
+            <div>
+              <p id="weatherText" class="weather-text">--</p>
+              <p id="tempNow" class="temp-now">--°C</p>
+              <p id="tempRange" class="temp-range">H --° / L --°</p>
+            </div>
+          </div>
+          <div class="aqi-box">
+            <p class="aqi-label"><span class="aqi-icon">🌿</span>AQI</p>
+            <p id="aqiValue" class="aqi-value">--</p>
+            <p id="aqiText" class="aqi-text">--</p>
+          </div>
+        </div>
+
+        <div class="weather-extra">
+          <p><span class="metric-label"><span class="metric-icon">🌡</span>体感温度</span><span id="feelsLike">--°C</span></p>
+          <p><span class="metric-label"><span class="metric-icon">💧</span>湿度</span><span id="humidity">--%</span></p>
+          <p><span class="metric-label"><span class="metric-icon">☀</span>紫外线</span><span id="uvIndex">--</span></p>
+        </div>
+
+        <ul id="forecastList" class="forecast-list"></ul>
+      </article>
+
+      <article class="card glass calendar-card">
+        <header class="card-head">
+          <h2 id="calendarTitle">2026年3月</h2>
+        </header>
+        <div class="week-header" id="weekHeader"></div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </article>
+    </section>
+  </main>
+
+  <div id="settingsMask" class="settings-mask" hidden></div>
+  <aside id="settingsPanel" class="settings-panel glass" aria-hidden="true">
+    <header class="settings-head">
+      <h3>显示设置</h3>
+      <button id="settingsClose" class="settings-close" aria-label="关闭设置">关闭</button>
+    </header>
+
+    <label class="setting-field" for="themeSelect">
+      <span>主题</span>
+      <select id="themeSelect">
+        <option value="aurora">深海极光</option>
+        <option value="sunrise">日出暖色</option>
+        <option value="mono">极简夜色</option>
+      </select>
+    </label>
+
+    <label class="setting-field" for="fontSelect">
+      <span>字体</span>
+      <select id="fontSelect">
+        <option value="avenir">Avenir + 苹方</option>
+        <option value="georgia">Georgia + 宋体</option>
+        <option value="trebuchet">Trebuchet + 微软雅黑</option>
+      </select>
+    </label>
+
+    <label class="setting-field" for="refreshInterval">
+      <span>天气自动刷新</span>
+      <select id="refreshInterval">
+        <option value="5">每 5 分钟</option>
+        <option value="10">每 10 分钟</option>
+        <option value="15">每 15 分钟</option>
+        <option value="30">每 30 分钟</option>
+      </select>
+    </label>
+  </aside>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

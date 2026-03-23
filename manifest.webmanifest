@@ -1,0 +1,20 @@
+{
+  "name": "时空桌面钟",
+  "short_name": "桌面钟",
+  "description": "适配 iPad 的 PWA 桌面时钟，包含天气、空气质量与日历。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#08131f",
+  "theme_color": "#0d1b2a",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
