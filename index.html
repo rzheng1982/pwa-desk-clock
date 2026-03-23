@@ -41,7 +41,10 @@
       <article class="card glass weather-card" id="weatherCard">
         <header class="card-head">
           <h2>天气与空气质量</h2>
-          <span id="locationName" class="badge">定位中...</span>
+          <div class="weather-head-actions">
+            <button id="weatherRefreshBtn" class="weather-refresh-btn" type="button" aria-label="手动刷新天气">刷新</button>
+            <span id="locationName" class="badge">定位中...</span>
+          </div>
         </header>
         <div class="weather-now">
           <div class="weather-overview">
@@ -130,4 +133,7 @@
   <script type="module" src="./app.js"></script>
 </body>
 </html>
+
+
+
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = "desk-clock-v18";
+const CACHE_NAME = "desk-clock-v23";
 const APP_SHELL = [
   "./",
   "./index.html",

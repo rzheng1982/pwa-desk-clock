@@ -10,6 +10,7 @@ const dialNumbersEl = document.getElementById("dialNumbers");
 const weatherCardEl = document.getElementById("weatherCard");
 const weatherVisualEl = document.getElementById("weatherVisual");
 const locationNameEl = document.getElementById("locationName");
+const weatherRefreshBtnEl = document.getElementById("weatherRefreshBtn");
 const weatherTextEl = document.getElementById("weatherText");
 const tempNowEl = document.getElementById("tempNow");
 const tempRangeEl = document.getElementById("tempRange");
@@ -40,6 +41,8 @@ const DEFAULT_SETTINGS = {
 };
 
 let weatherRefreshTimer = null;
+
+let lastCalendarDateKey = "";
 
 
 const WEEK_DAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -135,6 +138,12 @@ function setupSettings() {
   settingsClose.addEventListener("click", closeSettings);
   settingsMask.addEventListener("click", closeSettings);
 
+  if (weatherRefreshBtnEl) {
+    weatherRefreshBtnEl.addEventListener("click", () => {
+      refreshWeather({ manual: true });
+    });
+  }
+
   themeSelect.addEventListener("change", (event) => {
     settings.theme = event.target.value;
     applySettings();
@@ -212,6 +221,12 @@ function updateClock() {
   }
   if (secondHandEl) {
     secondHandEl.style.transform = `translate(-50%, -100%) rotate(${seconds * 6}deg)`;
+  }
+
+  const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  if (lastCalendarDateKey !== dateKey) {
+    lastCalendarDateKey = dateKey;
+    renderCalendar(now);
   }
 
   const solar = new Intl.DateTimeFormat("zh-CN", {
@@ -544,7 +559,10 @@ function renderWeather(weatherData) {
   );
 }
 
-async function fetchWeather(lat, lon) {
+async function fetchWeather(lat, lon, options = {}) {
+  const forceNetwork = Boolean(options.forceNetwork);
+  const requestOptions = forceNetwork ? { cache: "no-store" } : undefined;
+
   const weatherUrl = new URL("https://api.open-meteo.com/v1/forecast");
   weatherUrl.search = new URLSearchParams({
     latitude: String(lat),
@@ -556,6 +574,7 @@ async function fetchWeather(lat, lon) {
     timezone: "auto",
     forecast_days: "4",
   }).toString();
+  if (forceNetwork) weatherUrl.searchParams.set("_ts", String(Date.now()));
 
   const airUrl = new URL("https://air-quality-api.open-meteo.com/v1/air-quality");
   airUrl.search = new URLSearchParams({
@@ -565,10 +584,11 @@ async function fetchWeather(lat, lon) {
     hourly: "us_aqi,pm2_5,pm10",
     timezone: "auto",
   }).toString();
+  if (forceNetwork) airUrl.searchParams.set("_ts", String(Date.now()));
 
   const [weatherResult, airResult, placeName] = await Promise.allSettled([
-    fetch(weatherUrl),
-    fetch(airUrl),
+    fetch(weatherUrl, requestOptions),
+    fetch(airUrl, requestOptions),
     reverseGeocode(lat, lon),
   ]);
 
@@ -590,8 +610,13 @@ async function fetchWeather(lat, lon) {
     aqiTextEl.textContent = "AQI 服务暂不可用";
   }
 }
-
-function getLocation() {
+function setWeatherRefreshButtonState(isLoading) {
+  if (!weatherRefreshBtnEl) return;
+  weatherRefreshBtnEl.disabled = isLoading;
+  weatherRefreshBtnEl.classList.toggle("loading", isLoading);
+  weatherRefreshBtnEl.textContent = isLoading ? "刷新中" : "刷新";
+}
+function getLocation(options = {}) {
   return new Promise((resolve) => {
     if (!("geolocation" in navigator)) {
       resolve({ lat: 31.2304, lon: 121.4737 });
@@ -608,15 +633,21 @@ function getLocation() {
       () => {
         resolve({ lat: 31.2304, lon: 121.4737 });
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 5 * 60 * 1000 },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: options.forceFresh ? 0 : 5 * 60 * 1000 },
     );
   });
 }
 
-async function refreshWeather() {
+async function refreshWeather(options = {}) {
+  setWeatherRefreshButtonState(true);
   try {
-    const { lat, lon } = await getLocation();
-    await fetchWeather(lat, lon);
+    const forceNetwork = Boolean(options.manual);
+    if (forceNetwork) {
+      locationNameEl.textContent = "刷新中...";
+      weatherTextEl.textContent = "刷新中...";
+    }
+    const { lat, lon } = await getLocation({ forceFresh: forceNetwork });
+    await fetchWeather(lat, lon, { forceNetwork });
   } catch {
     weatherTextEl.textContent = "天气获取失败";
     tempNowEl.textContent = "--°C";
@@ -629,9 +660,10 @@ async function refreshWeather() {
     aqiTextEl.textContent = "网络不可用";
     weatherVisualEl.className = "weather-visual state-fog";
     forecastListEl.innerHTML = "";
+  } finally {
+    setWeatherRefreshButtonState(false);
   }
 }
-
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
@@ -650,6 +682,16 @@ renderCalendar();
 refreshWeather();
 startWeatherRefreshTimer();
 registerServiceWorker();
+
+
+
+
+
+
+
+
+
+
 
 
 
