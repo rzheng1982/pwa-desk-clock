@@ -41,9 +41,30 @@ const DEFAULT_SETTINGS = {
 };
 
 let weatherRefreshTimer = null;
+let clockTimer = null;
 
 let lastCalendarDateKey = "";
+let lastSecondStamp = -1;
+let lastMinuteStamp = -1;
 
+const solarDateFormatter = new Intl.DateTimeFormat("zh-CN", {
+  weekday: "long",
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+let lunarDateFormatter = null;
+try {
+  lunarDateFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
+    month: "long",
+    day: "numeric",
+  });
+} catch {
+  lunarDateFormatter = null;
+}
+
+const timeZoneLabel = `时区：${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
 
 const WEEK_DAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const WEATHER_CODE_MAP = {
@@ -194,22 +215,15 @@ function formatNow(now) {
 }
 
 function formatLunarDate(now) {
-  try {
-    const lunar = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
-      month: "long",
-      day: "numeric",
-    }).format(now);
-    return `农历${lunar}`;
-  } catch {
-    return "";
-  }
+  if (!lunarDateFormatter) return "";
+  return `农历${lunarDateFormatter.format(now)}`;
 }
 
-function updateClock() {
-  const now = new Date();
-  clockTimeEl.textContent = formatNow(now);
+function renderClock(now) {
+  const secondStamp = now.getSeconds();
+  const minuteStamp = now.getMinutes();
 
-  const seconds = now.getSeconds() + now.getMilliseconds() / 1000;
+  const seconds = now.getSeconds();
   const minutes = now.getMinutes() + seconds / 60;
   const hours = (now.getHours() % 12) + minutes / 60;
 
@@ -223,25 +237,44 @@ function updateClock() {
     secondHandEl.style.transform = `translate(-50%, -100%) rotate(${seconds * 6}deg)`;
   }
 
-  const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  if (lastCalendarDateKey !== dateKey) {
-    lastCalendarDateKey = dateKey;
-    renderCalendar(now);
+  if (secondStamp !== lastSecondStamp) {
+    lastSecondStamp = secondStamp;
+    clockTimeEl.textContent = formatNow(now);
   }
 
-  const solar = new Intl.DateTimeFormat("zh-CN", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(now);
+  if (minuteStamp !== lastMinuteStamp) {
+    lastMinuteStamp = minuteStamp;
 
-  const lunar = formatLunarDate(now);
-  dateLineEl.textContent = lunar ? `${solar} · ${lunar}` : solar;
+    const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    if (lastCalendarDateKey !== dateKey) {
+      lastCalendarDateKey = dateKey;
+      renderCalendar(now);
+    }
 
-  tzLineEl.textContent = `时区：${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+    const solar = solarDateFormatter.format(now);
+    const lunar = formatLunarDate(now);
+    dateLineEl.textContent = lunar ? `${solar} · ${lunar}` : solar;
+    tzLineEl.textContent = timeZoneLabel;
+  }
+}
 
-  requestAnimationFrame(updateClock);
+function scheduleClockTick() {
+  const now = new Date();
+  renderClock(now);
+
+  const delay = 1000 - now.getMilliseconds();
+  clockTimer = setTimeout(scheduleClockTick, delay + 8);
+}
+
+function startClock() {
+  if (clockTimer) clearTimeout(clockTimer);
+  scheduleClockTick();
+}
+
+function stopClock() {
+  if (!clockTimer) return;
+  clearTimeout(clockTimer);
+  clockTimer = null;
 }
 
 function renderCalendar(baseDate = new Date()) {
@@ -633,7 +666,7 @@ function getLocation(options = {}) {
       () => {
         resolve({ lat: 31.2304, lon: 121.4737 });
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: options.forceFresh ? 0 : 5 * 60 * 1000 },
+      { enableHighAccuracy: Boolean(options.forceFresh), timeout: 6000, maximumAge: options.forceFresh ? 0 : 15 * 60 * 1000 },
     );
   });
 }
@@ -674,14 +707,25 @@ function registerServiceWorker() {
   }
 }
 
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    startClock();
+    return;
+  }
+  stopClock();
+});
+
 initClockDial();
 applySettings();
 setupSettings();
-updateClock();
+startClock();
 renderCalendar();
 refreshWeather();
 startWeatherRefreshTimer();
 registerServiceWorker();
+
+
+
 
 
 

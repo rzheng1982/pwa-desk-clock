@@ -204,6 +204,8 @@ body[data-theme="mono"] .bg-layer {
     inset 0 0 28px rgba(87, 177, 236, 0.22),
     inset 0 -16px 30px rgba(0, 0, 0, 0.35),
     0 14px 26px rgba(0, 0, 0, 0.32);
+  contain: layout paint;
+  transform: translateZ(0);
 }
 
  .dial-ticks,
@@ -260,6 +262,9 @@ body[data-theme="mono"] .bg-layer {
   transform-origin: 50% 100%;
   border-radius: 999px;
   transform: translate(-50%, -100%) rotate(0deg);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .hour-hand {
@@ -419,7 +424,6 @@ body[data-theme="mono"] .bg-layer {
   top: 20px;
   background: radial-gradient(circle at 35% 30%, #fff5b8, #ffc857);
   box-shadow: 0 0 24px rgba(255, 215, 92, 0.75);
-  animation: pulse-sun 3s ease-in-out infinite;
 }
 
 .sun-rays {
@@ -429,7 +433,6 @@ body[data-theme="mono"] .bg-layer {
   top: 6px;
   border-radius: 50%;
   border: 2px dashed rgba(255, 215, 105, 0.72);
-  animation: spin 10s linear infinite;
 }
 
 .cloud {
@@ -467,9 +470,9 @@ body[data-theme="mono"] .bg-layer {
   top: 54px;
 }
 
-.rain-a { left: 30px; animation: rain-fall 1.1s linear infinite; }
-.rain-b { left: 42px; animation: rain-fall 1s linear infinite 0.2s; }
-.rain-c { left: 54px; animation: rain-fall 0.9s linear infinite 0.4s; }
+.rain-a { left: 30px; }
+.rain-b { left: 42px; }
+.rain-c { left: 54px; }
 
 .snow {
   width: 6px;
@@ -479,9 +482,9 @@ body[data-theme="mono"] .bg-layer {
   top: 56px;
 }
 
-.snow-a { left: 30px; animation: snow-fall 1.8s ease-in-out infinite; }
-.snow-b { left: 44px; animation: snow-fall 2s ease-in-out infinite 0.3s; }
-.snow-c { left: 56px; animation: snow-fall 1.7s ease-in-out infinite 0.6s; }
+.snow-a { left: 30px; }
+.snow-b { left: 44px; }
+.snow-c { left: 56px; }
 
 .bolt {
   width: 0;
@@ -492,7 +495,6 @@ body[data-theme="mono"] .bg-layer {
   left: 45px;
   top: 48px;
   transform: skewX(-10deg);
-  animation: flash 1.2s steps(1) infinite;
 }
 
 .mist {
@@ -502,7 +504,6 @@ body[data-theme="mono"] .bg-layer {
   height: 20px;
   border-top: 2px solid rgba(205, 227, 245, 0.8);
   border-bottom: 2px solid rgba(205, 227, 245, 0.6);
-  animation: float-mist 2.8s ease-in-out infinite;
 }
 
 .weather-visual.state-clear .sun-core,
@@ -537,6 +538,51 @@ body[data-theme="mono"] .bg-layer {
 
 .weather-visual.state-fog .mist {
   opacity: 1;
+}
+
+.weather-visual.state-clear .sun-core,
+.weather-visual.state-partly .sun-core {
+  animation: pulse-sun 3s ease-in-out infinite;
+}
+
+.weather-visual.state-clear .sun-rays,
+.weather-visual.state-partly .sun-rays {
+  animation: spin 10s linear infinite;
+}
+
+.weather-visual.state-rain .rain-a,
+.weather-visual.state-storm .rain-a {
+  animation: rain-fall 1.1s linear infinite;
+}
+
+.weather-visual.state-rain .rain-b,
+.weather-visual.state-storm .rain-b {
+  animation: rain-fall 1s linear infinite 0.2s;
+}
+
+.weather-visual.state-rain .rain-c,
+.weather-visual.state-storm .rain-c {
+  animation: rain-fall 0.9s linear infinite 0.4s;
+}
+
+.weather-visual.state-snow .snow-a {
+  animation: snow-fall 1.8s ease-in-out infinite;
+}
+
+.weather-visual.state-snow .snow-b {
+  animation: snow-fall 2s ease-in-out infinite 0.3s;
+}
+
+.weather-visual.state-snow .snow-c {
+  animation: snow-fall 1.7s ease-in-out infinite 0.6s;
+}
+
+.weather-visual.state-storm .bolt {
+  animation: flash 1.2s steps(1) infinite;
+}
+
+.weather-visual.state-fog .mist {
+  animation: float-mist 2.8s ease-in-out infinite;
 }
 
 .weather-visual.state-cloudy .sun-core,
@@ -903,5 +949,55 @@ body[data-theme="mono"] .bg-layer {
 
 .dial-ticks { display: none !important; }
 
+
+
+
+@media (hover: none) and (pointer: coarse) {
+  .glass {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(8, 25, 42, 0.82);
+  }
+
+  .blob {
+    animation: none;
+    filter: blur(3px);
+    opacity: 0.36;
+  }
+
+  .weather-card::before {
+    display: none;
+  }
+
+  .forecast-item,
+  .forecast-icon {
+    animation: none;
+  }
+
+  .clock-face {
+    box-shadow:
+      inset 0 0 18px rgba(87, 177, 236, 0.18),
+      inset 0 -10px 20px rgba(0, 0, 0, 0.3),
+      0 8px 18px rgba(0, 0, 0, 0.26);
+  }
+
+  .clock-time {
+    text-shadow: 0 0 4px rgba(120, 214, 255, 0.2);
+  }
+
+  .second-hand {
+    box-shadow: 0 0 3px rgba(255, 176, 112, 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}
 
 
