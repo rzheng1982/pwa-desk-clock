@@ -182,7 +182,7 @@ body[data-theme="mono"] .bg-layer {
 
 .clock-wrap {
   position: relative;
-  width: min(88vw, 76vh);
+  width: min(100%, 88vw, 76vh);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -763,8 +763,17 @@ body[data-theme="mono"] .bg-layer {
 
   .clock-panel { min-height: 100%; }
 
+  .clock-wrap {
+    width: min(100%, 64vh);
+  }
+
+  .clock-time {
+    font-size: clamp(44px, 7.2vmin, 96px);
+  }
+
   .info-grid {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr 1fr;
   }
 }
+
