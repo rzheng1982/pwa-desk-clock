@@ -1,7 +1,11 @@
 const clockTimeEl = document.getElementById("clockTime");
 const dateLineEl = document.getElementById("dateLine");
 const tzLineEl = document.getElementById("tzLine");
-const ringProgressEl = document.getElementById("ringProgress");
+const hourHandEl = document.getElementById("hourHand");
+const minuteHandEl = document.getElementById("minuteHand");
+const secondHandEl = document.getElementById("secondHand");
+const dialTicksEl = document.getElementById("dialTicks");
+const dialNumbersEl = document.getElementById("dialNumbers");
 
 const weatherCardEl = document.getElementById("weatherCard");
 const weatherVisualEl = document.getElementById("weatherVisual");
@@ -37,8 +41,6 @@ const DEFAULT_SETTINGS = {
 
 let weatherRefreshTimer = null;
 
-const secondRingLength = 2 * Math.PI * 98;
-ringProgressEl.style.strokeDasharray = String(secondRingLength);
 
 const WEEK_DAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const WEATHER_CODE_MAP = {
@@ -153,6 +155,28 @@ function setupSettings() {
   });
 }
 
+
+function initClockDial() {
+  if (!dialTicksEl || !dialNumbersEl) return;
+
+  dialTicksEl.innerHTML = "";
+  dialNumbersEl.innerHTML = "";
+
+    for (let n = 1; n <= 12; n += 1) {
+    const num = document.createElement("span");
+    num.className = "dial-number";
+    num.textContent = String(n);
+
+    const deg = n * 30 - 90;
+    const radius = 40;
+    const x = 50 + Math.cos((deg * Math.PI) / 180) * radius;
+    const y = 50 + Math.sin((deg * Math.PI) / 180) * radius;
+    num.style.left = `${x}%`;
+    num.style.top = `${y}%`;
+
+    dialNumbersEl.appendChild(num);
+  }
+}
 function formatNow(now) {
   const hh = String(now.getHours()).padStart(2, "0");
   const mm = String(now.getMinutes()).padStart(2, "0");
@@ -176,6 +200,20 @@ function updateClock() {
   const now = new Date();
   clockTimeEl.textContent = formatNow(now);
 
+  const seconds = now.getSeconds() + now.getMilliseconds() / 1000;
+  const minutes = now.getMinutes() + seconds / 60;
+  const hours = (now.getHours() % 12) + minutes / 60;
+
+  if (hourHandEl) {
+    hourHandEl.style.transform = `translate(-50%, -100%) rotate(${hours * 30}deg)`;
+  }
+  if (minuteHandEl) {
+    minuteHandEl.style.transform = `translate(-50%, -100%) rotate(${minutes * 6}deg)`;
+  }
+  if (secondHandEl) {
+    secondHandEl.style.transform = `translate(-50%, -100%) rotate(${seconds * 6}deg)`;
+  }
+
   const solar = new Intl.DateTimeFormat("zh-CN", {
     weekday: "long",
     year: "numeric",
@@ -188,8 +226,6 @@ function updateClock() {
 
   tzLineEl.textContent = `时区：${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
 
-  const seconds = now.getSeconds() + now.getMilliseconds() / 1000;
-  ringProgressEl.style.strokeDashoffset = String(secondRingLength * (1 - seconds / 60));
   requestAnimationFrame(updateClock);
 }
 
@@ -292,7 +328,29 @@ async function reverseGeocode(lat, lon) {
       }
     }
   } catch {
-    // Continue to secondary reverse geocode provider.
+    // Continue to other providers.
+  }
+
+  try {
+    const url = new URL("https://api.bigdatacloud.net/data/reverse-geocode-client");
+    url.searchParams.set("latitude", String(lat));
+    url.searchParams.set("longitude", String(lon));
+    url.searchParams.set("localityLanguage", "zh");
+
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      const countryCode = String(data?.countryCode || "").toUpperCase();
+      const text = joinLocationParts([
+        countryCode === "CN" ? "中国" : data?.countryName,
+        data?.principalSubdivision,
+        data?.city || data?.locality,
+        data?.locality,
+      ]);
+      if (text) return text;
+    }
+  } catch {
+    // Continue to final provider.
   }
 
   try {
@@ -584,6 +642,7 @@ function registerServiceWorker() {
   }
 }
 
+initClockDial();
 applySettings();
 setupSettings();
 updateClock();
@@ -591,3 +650,16 @@ renderCalendar();
 refreshWeather();
 startWeatherRefreshTimer();
 registerServiceWorker();
+
+
+
+
+
+
+
+
+
+
+
+
+

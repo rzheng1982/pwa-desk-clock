@@ -182,50 +182,135 @@ body[data-theme="mono"] .bg-layer {
 
 .clock-wrap {
   position: relative;
-  width: min(100%, 88vw, 76vh);
-  aspect-ratio: 1;
+  width: min(100%, 86vw, 64vh);
+  min-height: 220px;
   display: grid;
-  place-items: center;
+  grid-template-rows: auto auto;
+  justify-items: center;
+  align-content: center;
+  gap: clamp(10px, 1.8vw, 16px);
+}
+
+.clock-face {
+  width: min(100%, 58vh);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  position: relative;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(206, 241, 255, 0.22), transparent 46%),
+    radial-gradient(circle at 50% 55%, rgba(9, 25, 40, 0.96) 0%, rgba(7, 18, 31, 0.96) 68%, rgba(80, 156, 210, 0.32) 100%);
+  border: 2px solid rgba(145, 206, 247, 0.35);
+  box-shadow:
+    inset 0 0 28px rgba(87, 177, 236, 0.22),
+    inset 0 -16px 30px rgba(0, 0, 0, 0.35),
+    0 14px 26px rgba(0, 0, 0, 0.32);
+}
+
+ .dial-ticks,
+.dial-numbers {
+  position: absolute;
+  inset: 0;
+}
+
+.dial-tick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 50%;
+  transform-origin: center top;
+}
+
+.dial-tick::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 8%;
+  width: 2px;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(184, 223, 248, 0.5);
+}
+
+.dial-tick.major::before {
+  width: 3px;
+  height: 14px;
+  background: rgba(227, 245, 255, 0.8);
+}
+
+.dial-number {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  margin-left: -14px;
+  margin-top: -14px;
+  text-align: center;
+  font-size: clamp(12px, 1.6vmin, 16px);
+  font-weight: 700;
+  color: #e6f7ff;
+  text-shadow: 0 0 6px rgba(120, 208, 255, 0.45);
+}
+
+.dial-hand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: 50% 100%;
+  border-radius: 999px;
+  transform: translate(-50%, -100%) rotate(0deg);
+}
+
+.hour-hand {
+  width: 8px;
+  height: 26%;
+  background: linear-gradient(180deg, #f8fcff, #8fd1ff);
+  box-shadow: 0 0 8px rgba(131, 210, 255, 0.42);
+}
+
+.minute-hand {
+  width: 5px;
+  height: 36%;
+  background: linear-gradient(180deg, #f8fcff, #a6dfff);
+  box-shadow: 0 0 8px rgba(131, 210, 255, 0.42);
+}
+
+.second-hand {
+  width: 2px;
+  height: 40%;
+  background: linear-gradient(180deg, #ffd99a, #ff8e5d);
+  box-shadow: 0 0 8px rgba(255, 176, 112, 0.55);
+}
+
+.dial-center-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #87cdfd);
+  box-shadow: 0 0 10px rgba(122, 210, 255, 0.7);
 }
 
 .clock-time {
   margin: 0;
-  font-size: clamp(56px, 11vmin, 126px);
+  font-size: clamp(90px, 15.5vmin, 170px);
   font-weight: 700;
+  font-family: "Avenir Next", "PingFang SC", "Helvetica Neue", sans-serif;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.06em;
-  text-shadow:
-    0 0 12px rgba(87, 226, 255, 0.56),
-    0 0 34px rgba(45, 128, 211, 0.42);
-  animation: glow 2.4s ease-in-out infinite;
+  letter-spacing: 0.09em;
+  color: #eaf7ff;
+  text-shadow: 0 0 10px rgba(120, 214, 255, 0.32);
 }
 
-.second-ring {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-
+.second-ring,
 .ring-bg,
 .ring-progress {
-  fill: none;
-  stroke-width: 10;
+  display: none;
 }
-
-.ring-bg {
-  stroke: rgba(198, 233, 255, 0.14);
-}
-
-.ring-progress {
-  stroke: var(--accent);
-  stroke-linecap: round;
-  stroke-dasharray: 615.75;
-  stroke-dashoffset: 615.75;
-  filter: drop-shadow(0 0 10px rgba(104, 236, 255, 0.65));
-}
-
 .info-grid {
   min-height: 0;
   display: grid;
@@ -742,7 +827,13 @@ body[data-theme="mono"] .bg-layer {
     grid-template-rows: minmax(48vh, auto) auto;
   }
 
-  .clock-time { font-size: clamp(46px, 13vw, 96px); }
+  .clock-face {
+    width: min(100%, 72vw);
+  }
+
+  .clock-time {
+    font-size: clamp(42px, 9vw, 70px);
+  }
 
   .weather-now {
     flex-direction: column;
@@ -761,14 +852,21 @@ body[data-theme="mono"] .bg-layer {
     grid-template-rows: 1fr;
   }
 
-  .clock-panel { min-height: 100%; }
+  .clock-panel {
+    min-height: 100%;
+  }
 
   .clock-wrap {
-    width: min(100%, 64vh);
+    width: min(100%, 58vh);
+    gap: 10px;
+  }
+
+  .clock-face {
+    width: min(100%, 52vh);
   }
 
   .clock-time {
-    font-size: clamp(44px, 7.2vmin, 96px);
+    font-size: clamp(60px, 10vmin, 110px);
   }
 
   .info-grid {
@@ -776,4 +874,10 @@ body[data-theme="mono"] .bg-layer {
     grid-template-rows: 1fr 1fr;
   }
 }
+
+
+
+
+.dial-ticks { display: none !important; }
+
 

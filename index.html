@@ -24,11 +24,15 @@
       <button id="settingsBtn" class="settings-btn" aria-label="打开设置">设置</button>
       <p id="dateLine" class="date-line">--</p>
       <div class="clock-wrap">
+        <div class="clock-face" id="clockFace" aria-hidden="true">
+          <div class="dial-ticks" id="dialTicks"></div>
+          <div class="dial-numbers" id="dialNumbers"></div>
+          <div id="hourHand" class="dial-hand hour-hand"></div>
+          <div id="minuteHand" class="dial-hand minute-hand"></div>
+          <div id="secondHand" class="dial-hand second-hand"></div>
+          <div class="dial-center-dot"></div>
+        </div>
         <h1 id="clockTime" class="clock-time">00:00:00</h1>
-        <svg class="second-ring" viewBox="0 0 220 220" aria-hidden="true">
-          <circle class="ring-bg" cx="110" cy="110" r="98"></circle>
-          <circle id="ringProgress" class="ring-progress" cx="110" cy="110" r="98"></circle>
-        </svg>
       </div>
       <p id="tzLine" class="tz-line">时区：--</p>
     </section>
@@ -126,3 +130,4 @@
   <script type="module" src="./app.js"></script>
 </body>
 </html>
+
