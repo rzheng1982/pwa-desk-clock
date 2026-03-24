@@ -1060,7 +1060,7 @@ body[data-theme="mono"] .bg-layer {
 
 /* Digital clock: squared font, larger size, deeper 3D effect */
 .clock-time {
-  font-family: "Rajdhani", "Orbitron", "Share Tech Mono", "DIN Condensed", "Consolas", "Courier New", monospace;
+  font-family: "SFMono-Regular", "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: clamp(270px, 48vmin, 630px);
   font-weight: 800;
   letter-spacing: 0.08em;
