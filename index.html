@@ -23,21 +23,11 @@
     <section class="clock-panel glass">
       <button id="settingsBtn" class="settings-btn" aria-label="打开设置">设置</button>
       <p id="dateLine" class="date-line">--</p>
-      <div class="clock-wrap">
-        <div class="clock-face" id="clockFace" aria-hidden="true">
-          <div class="dial-ticks" id="dialTicks"></div>
-          <div class="dial-numbers" id="dialNumbers"></div>
-          <div id="hourHand" class="dial-hand hour-hand"></div>
-          <div id="minuteHand" class="dial-hand minute-hand"></div>
-          <div id="secondHand" class="dial-hand second-hand"></div>
-          <div class="dial-center-dot"></div>
-        </div>
-        <h1 id="clockTime" class="clock-time">00:00:00</h1>
-      </div>
+      <h1 id="clockTime" class="clock-time">00:00:00</h1>
       <p id="tzLine" class="tz-line">时区：--</p>
     </section>
 
-    <section class="info-grid">
+    <section class="weather-panel">
       <article class="card glass weather-card" id="weatherCard">
         <header class="card-head">
           <h2>天气与空气质量</h2>
@@ -83,14 +73,6 @@
 
         <ul id="forecastList" class="forecast-list"></ul>
       </article>
-
-      <article class="card glass calendar-card">
-        <header class="card-head">
-          <h2 id="calendarTitle">2026年3月</h2>
-        </header>
-        <div class="week-header" id="weekHeader"></div>
-        <div class="calendar-grid" id="calendarGrid"></div>
-      </article>
     </section>
   </main>
 
@@ -127,6 +109,11 @@
         <option value="15">每 15 分钟</option>
         <option value="30">每 30 分钟</option>
       </select>
+    </label>
+
+    <label class="setting-field toggle" for="showSecondsToggle">
+      <span>显示秒数</span>
+      <input id="showSecondsToggle" type="checkbox" />
     </label>
   </aside>
 

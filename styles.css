@@ -1001,3 +1001,127 @@ body[data-theme="mono"] .bg-layer {
 }
 
 
+
+/* Layout override: two stacked sections with digital clock + weather card */
+.dashboard {
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(220px, 44vh) minmax(0, 1fr);
+}
+
+.clock-panel {
+  grid-template-rows: auto 1fr auto;
+  align-items: center;
+  padding: clamp(16px, 3vw, 28px);
+}
+
+.clock-time {
+  font-size: clamp(96px, 18vmin, 220px);
+  line-height: 0.95;
+}
+
+.weather-panel {
+  min-height: 0;
+}
+
+.weather-panel .weather-card {
+  height: 100%;
+}
+
+.forecast-list {
+  grid-template-columns: repeat(var(--forecast-columns, 3), minmax(0, 1fr));
+}
+
+@media (max-width: 1024px) {
+  .dashboard {
+    grid-template-rows: minmax(220px, 42vh) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    grid-template-rows: minmax(240px, 46vh) minmax(0, 1fr);
+  }
+
+  .clock-time {
+    font-size: clamp(56px, 14vw, 110px);
+  }
+}
+
+@media (orientation: landscape) and (min-width: 1024px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(220px, 44vh) minmax(0, 1fr);
+  }
+
+  .clock-time {
+    font-size: clamp(84px, 14vmin, 170px);
+  }
+}
+
+/* Digital clock: squared font, larger size, deeper 3D effect */
+.clock-time {
+  font-family: "Rajdhani", "Orbitron", "Share Tech Mono", "DIN Condensed", "Consolas", "Courier New", monospace;
+  font-size: clamp(270px, 48vmin, 630px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 0.9;
+  color: #f3fbff;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95),
+    0 3px 0 rgba(165, 230, 255, 0.55),
+    0 6px 0 rgba(70, 168, 220, 0.45),
+    0 14px 20px rgba(0, 0, 0, 0.5),
+    0 0 18px rgba(123, 216, 255, 0.3);
+}
+
+.setting-field.toggle {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.setting-field.toggle input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: rgba(7, 30, 46, 0.78);
+  position: relative;
+  cursor: pointer;
+  transition: background 180ms ease;
+}
+
+.setting-field.toggle input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e9f7ff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: transform 180ms ease;
+}
+
+.setting-field.toggle input[type="checkbox"]:checked {
+  background: rgba(84, 226, 255, 0.55);
+}
+
+.setting-field.toggle input[type="checkbox"]:checked::after {
+  transform: translateX(20px);
+}
+
+@media (max-width: 768px) {
+  .clock-time {
+    font-size: clamp(135px, 33vw, 330px);
+  }
+}
+
+@media (orientation: landscape) and (min-width: 1024px) {
+  .clock-time {
+    font-size: clamp(195px, 36vmin, 450px);
+  }
+}

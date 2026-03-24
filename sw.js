@@ -1,4 +1,4 @@
-const CACHE_NAME = "desk-clock-v24";
+const CACHE_NAME = "desk-clock-v26";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -49,4 +49,6 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(caches.match(request).then((cached) => cached || fetch(request)));
 });
+
+
 

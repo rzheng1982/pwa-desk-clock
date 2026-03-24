@@ -32,13 +32,17 @@ const settingsPanel = document.getElementById("settingsPanel");
 const themeSelect = document.getElementById("themeSelect");
 const fontSelect = document.getElementById("fontSelect");
 const refreshIntervalSelect = document.getElementById("refreshInterval");
+const showSecondsToggleEl = document.getElementById("showSecondsToggle");
 
 const SETTINGS_KEY = "desk-clock-settings-v1";
 const DEFAULT_SETTINGS = {
   theme: "aurora",
   font: "avenir",
   refreshMinutes: 10,
+  showSeconds: true,
 };
+const QWEATHER_API_KEY = "995725a47cc546f097e1c75a8a46a876";
+const QWEATHER_API_HOST = "k64d945tk8.re.qweatherapi.com";
 
 let weatherRefreshTimer = null;
 let clockTimer = null;
@@ -46,6 +50,13 @@ let clockTimer = null;
 let lastCalendarDateKey = "";
 let lastSecondStamp = -1;
 let lastMinuteStamp = -1;
+
+let preferredForecastDays = 3;
+let latestForecastMode = "";
+let latestOpenMeteoDaily = null;
+let latestQWeatherDaily = [];
+let forecastResizeRaf = null;
+let weatherCardResizeObserver = null;
 
 const solarDateFormatter = new Intl.DateTimeFormat("zh-CN", {
   weekday: "long",
@@ -111,6 +122,8 @@ function loadSettings() {
         Number.isFinite(Number(parsed.refreshMinutes)) && Number(parsed.refreshMinutes) > 0
           ? Number(parsed.refreshMinutes)
           : DEFAULT_SETTINGS.refreshMinutes,
+      showSeconds:
+        typeof parsed.showSeconds === "boolean" ? parsed.showSeconds : DEFAULT_SETTINGS.showSeconds,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -130,6 +143,7 @@ function applySettings() {
   themeSelect.value = settings.theme;
   fontSelect.value = settings.font;
   refreshIntervalSelect.value = String(settings.refreshMinutes);
+  if (showSecondsToggleEl) showSecondsToggleEl.checked = Boolean(settings.showSeconds);
 }
 
 function openSettings() {
@@ -183,6 +197,14 @@ function setupSettings() {
     startWeatherRefreshTimer();
     refreshWeather();
   });
+
+  if (showSecondsToggleEl) {
+    showSecondsToggleEl.addEventListener("change", (event) => {
+      settings.showSeconds = Boolean(event.target.checked);
+      saveSettings(settings);
+      clockTimeEl.textContent = formatNow(new Date());
+    });
+  }
 }
 
 
@@ -210,6 +232,8 @@ function initClockDial() {
 function formatNow(now) {
   const hh = String(now.getHours()).padStart(2, "0");
   const mm = String(now.getMinutes()).padStart(2, "0");
+  if (!settings.showSeconds) return `${hh}:${mm}`;
+
   const ss = String(now.getSeconds()).padStart(2, "0");
   return `${hh}:${mm}:${ss}`;
 }
@@ -278,6 +302,8 @@ function stopClock() {
 }
 
 function renderCalendar(baseDate = new Date()) {
+  if (!weekHeaderEl || !calendarGridEl || !calendarTitleEl) return;
+
   weekHeaderEl.innerHTML = "";
   calendarGridEl.innerHTML = "";
 
@@ -349,8 +375,31 @@ function joinLocationParts(parts) {
   return clean.join("");
 }
 
+function stripCnRegionSuffix(name) {
+  if (!name) return "";
+  return String(name).trim().replace(/(特别行政区|自治区|自治州|自治县|地区|盟|省|市|区|县)$/u, "");
+}
+
+function formatCnShortLocation({ adm1, adm2, name }) {
+  const city = stripCnRegionSuffix(adm1) || stripCnRegionSuffix(adm2);
+  const district = stripCnRegionSuffix(name) || stripCnRegionSuffix(adm2);
+  if (city && district) return `${city}，${district}`;
+  return city || district || "";
+}
+
 function fallbackLocationText(lat, lon) {
   return `坐标 ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+}
+
+function fallbackLocationContext(lat, lon) {
+  return { displayName: fallbackLocationText(lat, lon), countryCode: "" };
+}
+
+function toLocationContext(displayName, countryCode = "") {
+  return {
+    displayName: displayName || "",
+    countryCode: String(countryCode || "").toUpperCase(),
+  };
 }
 
 async function reverseGeocode(lat, lon) {
@@ -372,7 +421,12 @@ async function reverseGeocode(lat, lon) {
           place?.admin2,
           place?.name,
         ]);
-        if (text) return text;
+        if (text) {
+          const shortCn = countryCode === "CN"
+            ? formatCnShortLocation({ adm1: place?.admin1, adm2: place?.admin2, name: place?.name })
+            : "";
+          return toLocationContext(shortCn || text, countryCode);
+        }
       }
     }
   } catch {
@@ -395,7 +449,16 @@ async function reverseGeocode(lat, lon) {
         data?.city || data?.locality,
         data?.locality,
       ]);
-      if (text) return text;
+      if (text) {
+        const shortCn = countryCode === "CN"
+          ? formatCnShortLocation({
+            adm1: data?.principalSubdivision,
+            adm2: data?.city || data?.locality,
+            name: data?.locality,
+          })
+          : "";
+        return toLocationContext(shortCn || text, countryCode);
+      }
     }
   } catch {
     // Continue to final provider.
@@ -411,7 +474,7 @@ async function reverseGeocode(lat, lon) {
     url.searchParams.set("addressdetails", "1");
 
     const res = await fetch(url);
-    if (!res.ok) return fallbackLocationText(lat, lon);
+    if (!res.ok) return fallbackLocationContext(lat, lon);
 
     const data = await res.json();
     const a = data?.address || {};
@@ -422,9 +485,17 @@ async function reverseGeocode(lat, lon) {
       a.suburb || a.city_district || a.neighbourhood,
     ]);
 
-    return text || fallbackLocationText(lat, lon);
+    const isCn = String(a.country_code || "").toLowerCase() === "cn";
+    const shortCn = isCn
+      ? formatCnShortLocation({
+        adm1: a.state,
+        adm2: a.city || a.town || a.county,
+        name: a.suburb || a.city_district || a.neighbourhood,
+      })
+      : "";
+    return toLocationContext(shortCn || text || fallbackLocationText(lat, lon), a.country_code);
   } catch {
-    return fallbackLocationText(lat, lon);
+    return fallbackLocationContext(lat, lon);
   }
 }
 
@@ -454,14 +525,101 @@ function weatherState(code) {
 
 function setWeatherVisual(code) {
   const state = weatherState(code);
+  setWeatherVisualByState(state);
+}
+
+function setWeatherVisualByState(state) {
   weatherVisualEl.className = `weather-visual state-${state}`;
   weatherCardEl.dataset.weatherState = state;
+}
+
+function weatherGlyphByState(state) {
+  if (state === "storm") return "⚡";
+  if (state === "snow") return "❄";
+  if (state === "rain") return "🌧";
+  if (state === "fog") return "🌫";
+  if (state === "partly") return "⛅";
+  if (state === "cloudy") return "☁";
+  return "☀";
+}
+
+function qWeatherState(iconCode) {
+  const code = Number(iconCode);
+  if (Number.isNaN(code)) return "clear";
+  if ([302, 303, 304].includes(code)) return "storm";
+  if (code >= 300 && code <= 399) return "rain";
+  if (code >= 400 && code <= 499) return "snow";
+  if (code >= 500 && code <= 515) return "fog";
+  if ([101, 102, 103, 104].includes(code)) return "partly";
+  if (code === 100) return "clear";
+  return "cloudy";
+}
+
+function detectForecastDaysByWidth() {
+  const listWidth = forecastListEl?.clientWidth || weatherCardEl?.clientWidth || window.innerWidth || 0;
+  const minCardWidth = 118;
+  const gap = 10;
+  const fitCount = Math.floor((listWidth + gap) / (minCardWidth + gap));
+  return fitCount >= 7 ? 7 : 3;
+}
+
+function rerenderLatestForecast() {
+  if (latestForecastMode === "qweather") {
+    renderQWeatherForecast(latestQWeatherDaily);
+    return;
+  }
+
+  if (latestForecastMode === "openmeteo") {
+    renderForecast(
+      latestOpenMeteoDaily?.time || [],
+      latestOpenMeteoDaily?.weather_code || [],
+      latestOpenMeteoDaily?.temperature_2m_max || [],
+      latestOpenMeteoDaily?.temperature_2m_min || [],
+    );
+  }
+}
+
+function syncForecastLayout(options = {}) {
+  const force = Boolean(options.force);
+  const nextDays = detectForecastDaysByWidth();
+  if (!force && nextDays === preferredForecastDays) return;
+
+  preferredForecastDays = nextDays;
+  if (forecastListEl) {
+    forecastListEl.style.setProperty("--forecast-columns", String(preferredForecastDays));
+  }
+
+  if (latestForecastMode) {
+    rerenderLatestForecast();
+  }
+}
+
+function requestForecastLayoutSync() {
+  if (forecastResizeRaf != null) return;
+
+  forecastResizeRaf = requestAnimationFrame(() => {
+    forecastResizeRaf = null;
+    syncForecastLayout();
+  });
+}
+
+function setupForecastLayoutObserver() {
+  syncForecastLayout({ force: true });
+
+  if (typeof ResizeObserver === "function" && weatherCardEl) {
+    weatherCardResizeObserver = new ResizeObserver(() => {
+      requestForecastLayoutSync();
+    });
+    weatherCardResizeObserver.observe(weatherCardEl);
+  }
+
+  window.addEventListener("resize", requestForecastLayoutSync);
 }
 
 function renderForecast(days = [], weatherCodes = [], tMax = [], tMin = []) {
   forecastListEl.innerHTML = "";
 
-  const maxCount = Math.min(3, Math.max(0, days.length - 1));
+  const maxCount = Math.min(preferredForecastDays, Math.max(0, days.length - 1));
   for (let i = 1; i <= maxCount; i += 1) {
     const item = document.createElement("li");
     item.className = "forecast-item";
@@ -584,15 +742,245 @@ function renderWeather(weatherData) {
     uvIndexEl.textContent = `${uv.toFixed(1)} (${uvLevelText(uv)})`;
   }
 
+  latestForecastMode = "openmeteo";
+  latestQWeatherDaily = [];
+  latestOpenMeteoDaily = weatherData?.daily || null;
+
   renderForecast(
-    weatherData?.daily?.time || [],
-    weatherData?.daily?.weather_code || [],
-    weatherData?.daily?.temperature_2m_max || [],
-    weatherData?.daily?.temperature_2m_min || [],
+    latestOpenMeteoDaily?.time || [],
+    latestOpenMeteoDaily?.weather_code || [],
+    latestOpenMeteoDaily?.temperature_2m_max || [],
+    latestOpenMeteoDaily?.temperature_2m_min || [],
   );
 }
 
-async function fetchWeather(lat, lon, options = {}) {
+function renderQWeatherForecast(daily = []) {
+  forecastListEl.innerHTML = "";
+  const maxCount = Math.min(preferredForecastDays, Math.max(0, daily.length - 1));
+
+  for (let i = 1; i <= maxCount; i += 1) {
+    const day = daily[i] || {};
+    const item = document.createElement("li");
+    item.className = "forecast-item";
+    item.style.animationDelay = `${i * 80}ms`;
+
+    const date = day.fxDate ? new Date(day.fxDate) : new Date();
+    const week = `周${WEEK_DAYS[date.getDay()]}`;
+    const mmdd = `${date.getMonth() + 1}/${date.getDate()}`;
+    const state = qWeatherState(day.iconDay);
+    const cond = day.textDay || "天气更新中";
+    const maxTemp = Number(day.tempMax);
+    const minTemp = Number(day.tempMin);
+    const tempText = Number.isFinite(maxTemp) && Number.isFinite(minTemp)
+      ? `${Math.round(maxTemp)}° / ${Math.round(minTemp)}°`
+      : "--° / --°";
+
+    item.innerHTML = `
+      <p class="forecast-day">${week} ${mmdd}</p>
+      <p class="forecast-cond"><span class="forecast-icon">${weatherGlyphByState(state)}</span>${cond}</p>
+      <p class="forecast-temp">${tempText}</p>
+    `;
+    forecastListEl.appendChild(item);
+  }
+
+  if (!maxCount) {
+    const item = document.createElement("li");
+    item.className = "forecast-item";
+    item.innerHTML = "<p>未来预报暂不可用</p>";
+    forecastListEl.appendChild(item);
+  }
+}
+
+function renderQWeather(aqiData, weatherNowData, weatherDailyData) {
+  const now = weatherNowData?.now || {};
+  const daily = weatherDailyData?.daily || [];
+  const today = daily[0] || {};
+
+  weatherTextEl.textContent = now.text || "天气更新中";
+  tempNowEl.textContent = Number.isFinite(Number(now.temp)) ? `${Math.round(Number(now.temp))}°C` : "--°C";
+  setWeatherVisualByState(qWeatherState(now.icon));
+
+  if (Number.isFinite(Number(today.tempMax)) && Number.isFinite(Number(today.tempMin))) {
+    tempRangeEl.textContent = `H ${Math.round(Number(today.tempMax))}° / L ${Math.round(Number(today.tempMin))}°`;
+  } else {
+    tempRangeEl.textContent = "H --° / L --°";
+  }
+
+  feelsLikeEl.textContent = Number.isFinite(Number(now.feelsLike))
+    ? `${Math.round(Number(now.feelsLike))}°C`
+    : "--°C";
+  humidityEl.textContent = Number.isFinite(Number(now.humidity))
+    ? `${Math.round(Number(now.humidity))}%`
+    : "--%";
+
+  const uvRaw = Number(today.uvIndex ?? now.uvIndex);
+  if (Number.isFinite(uvRaw)) {
+    const uv = Math.max(0, uvRaw);
+    uvIndexEl.textContent = `${uv.toFixed(1)} (${uvLevelText(uv)})`;
+  } else {
+    uvIndexEl.textContent = "--";
+  }
+  latestForecastMode = "qweather";
+  latestOpenMeteoDaily = null;
+  latestQWeatherDaily = Array.isArray(daily) ? daily : [];
+
+  renderQWeatherForecast(latestQWeatherDaily);
+
+  const usAqiIndex = aqiData?.indexes?.find((item) => item?.code === "us-epa");
+  const qAqiIndex = aqiData?.indexes?.find((item) => item?.code === "qaqi");
+  const cnAqiIndex = aqiData?.indexes?.find((item) => item?.code === "aqi" || item?.code === "cn-mee");
+  const firstIndex = aqiData?.indexes?.[0];
+  const pm25Pollutant = aqiData?.pollutants?.find((item) => item?.code === "pm2p5");
+  const aqi = Number(
+    usAqiIndex?.aqiDisplay ??
+    usAqiIndex?.aqi ??
+    qAqiIndex?.aqiDisplay ??
+    qAqiIndex?.aqi ??
+    cnAqiIndex?.aqiDisplay ??
+    cnAqiIndex?.aqi ??
+    firstIndex?.aqiDisplay ??
+    firstIndex?.aqi ??
+    aqiData?.now?.aqi,
+  );
+  const pm25 = Number(pm25Pollutant?.concentration?.value ?? aqiData?.now?.pm2p5);
+  if (!Number.isFinite(aqi)) {
+    aqiValueEl.textContent = "--";
+    aqiTextEl.textContent = "AQI 暂无数据";
+    return;
+  }
+
+  const rawAqi = Math.round(aqi);
+  const [aqiLabel, color] = describeAqi(rawAqi);
+  aqiValueEl.textContent = String(rawAqi);
+  aqiValueEl.style.color = color;
+  aqiTextEl.textContent = Number.isFinite(pm25)
+    ? `${aqiLabel} · PM2.5 ${Math.round(pm25)}`
+    : aqiLabel;
+}
+
+async function fetchQWeather(lat, lon, options = {}) {
+  if (!QWEATHER_API_KEY) throw new Error("QWeather key missing");
+  const forceNetwork = Boolean(options.forceNetwork);
+  const requestOptions = {
+    headers: {
+      "X-QW-Api-Key": QWEATHER_API_KEY,
+    },
+  };
+  if (forceNetwork) requestOptions.cache = "no-store";
+
+  const lookupUrl = new URL(`https://${QWEATHER_API_HOST}/geo/v2/city/lookup`);
+  lookupUrl.search = new URLSearchParams({
+    location: `${lon},${lat}`,
+    number: "1",
+    lang: "zh",
+    range: "cn",
+  }).toString();
+  if (forceNetwork) lookupUrl.searchParams.set("_ts", String(Date.now()));
+
+  const lookupRes = await fetch(lookupUrl, requestOptions);
+  if (!lookupRes.ok) throw new Error("和风地理接口不可用");
+
+  const lookupData = await lookupRes.json();
+  const city = lookupData?.location?.[0];
+  if (!city?.id) throw new Error("和风地理定位失败");
+
+  const placeText = joinLocationParts([
+    city.country === "中国" || city.country === "China" ? "中国" : city.country,
+    city.adm1,
+    city.adm2,
+    city.name,
+  ]);
+  const shortCn = formatCnShortLocation({ adm1: city.adm1, adm2: city.adm2, name: city.name });
+  if (placeText) locationNameEl.textContent = shortCn || placeText;
+
+  const nowUrl = new URL(`https://${QWEATHER_API_HOST}/v7/weather/now`);
+  nowUrl.search = new URLSearchParams({ location: city.id, lang: "zh", unit: "m" }).toString();
+  if (forceNetwork) nowUrl.searchParams.set("_ts", String(Date.now()));
+  const fetchDailyWeatherResponse = async () => {
+    const dailyPaths = ["/v7/weather/10d", "/v7/weather/7d"];
+    for (const path of dailyPaths) {
+      const dailyUrl = new URL(`https://${QWEATHER_API_HOST}${path}`);
+      dailyUrl.search = new URLSearchParams({ location: city.id, lang: "zh", unit: "m" }).toString();
+      if (forceNetwork) dailyUrl.searchParams.set("_ts", String(Date.now()));
+
+      try {
+        const res = await fetch(dailyUrl, requestOptions);
+        if (res.ok) return res;
+      } catch {
+        // Try next daily endpoint.
+      }
+    }
+
+    throw new Error("和风天气日预报接口不可用");
+  };
+
+  const airEndpoints = [
+    `https://${QWEATHER_API_HOST}/airquality/v1/current/${lat.toFixed(2)}/${lon.toFixed(2)}`,
+    `https://${QWEATHER_API_HOST}/airquality/v1/current/${lon.toFixed(2)}/${lat.toFixed(2)}`,
+  ];
+
+  const fetchAirQuality = async () => {
+    for (const endpoint of airEndpoints) {
+      const primaryUrl = new URL(endpoint);
+      primaryUrl.search = new URLSearchParams({ lang: "zh" }).toString();
+      if (forceNetwork) primaryUrl.searchParams.set("_ts", String(Date.now()));
+
+      try {
+        const primaryRes = await fetch(primaryUrl, requestOptions);
+        if (primaryRes.ok) {
+          return await primaryRes.json();
+        }
+      } catch {
+        // Try fallback auth mode.
+      }
+
+      const fallbackUrl = new URL(endpoint);
+      fallbackUrl.search = new URLSearchParams({
+        lang: "zh",
+        key: QWEATHER_API_KEY,
+      }).toString();
+      if (forceNetwork) fallbackUrl.searchParams.set("_ts", String(Date.now()));
+
+      try {
+        const fallbackRes = await fetch(fallbackUrl, forceNetwork ? { cache: "no-store" } : undefined);
+        if (fallbackRes.ok) {
+          return await fallbackRes.json();
+        }
+      } catch {
+        // Continue to next endpoint.
+      }
+    }
+    return null;
+  };
+
+  const [nowResult, dailyResult, airResult] = await Promise.allSettled([
+    fetch(nowUrl, requestOptions),
+    fetchDailyWeatherResponse(),
+    fetchAirQuality(),
+  ]);
+
+  if (
+    nowResult.status !== "fulfilled" ||
+    dailyResult.status !== "fulfilled" ||
+    !nowResult.value.ok ||
+    !dailyResult.value.ok
+  ) {
+    throw new Error("和风天气服务暂不可用");
+  }
+
+  const weatherNowData = await nowResult.value.json();
+  const weatherDailyData = await dailyResult.value.json();
+  let aqiData = null;
+
+  if (airResult.status === "fulfilled") {
+    aqiData = airResult.value;
+  } else {
+    console.warn("QWeather AQI request failed:", airResult.reason);
+  }
+  renderQWeather(aqiData, weatherNowData, weatherDailyData);
+}
+
+async function fetchOpenMeteo(lat, lon, options = {}) {
   const forceNetwork = Boolean(options.forceNetwork);
   const requestOptions = forceNetwork ? { cache: "no-store" } : undefined;
 
@@ -605,7 +993,7 @@ async function fetchWeather(lat, lon, options = {}) {
     hourly: "temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,uv_index",
     daily: "weather_code,temperature_2m_max,temperature_2m_min",
     timezone: "auto",
-    forecast_days: "4",
+    forecast_days: "8",
   }).toString();
   if (forceNetwork) weatherUrl.searchParams.set("_ts", String(Date.now()));
 
@@ -619,14 +1007,10 @@ async function fetchWeather(lat, lon, options = {}) {
   }).toString();
   if (forceNetwork) airUrl.searchParams.set("_ts", String(Date.now()));
 
-  const [weatherResult, airResult, placeName] = await Promise.allSettled([
+  const [weatherResult, airResult] = await Promise.allSettled([
     fetch(weatherUrl, requestOptions),
     fetch(airUrl, requestOptions),
-    reverseGeocode(lat, lon),
   ]);
-
-  locationNameEl.textContent =
-    placeName.status === "fulfilled" ? placeName.value : fallbackLocationText(lat, lon);
 
   if (weatherResult.status !== "fulfilled" || !weatherResult.value.ok) {
     throw new Error("天气服务暂不可用");
@@ -642,6 +1026,24 @@ async function fetchWeather(lat, lon, options = {}) {
     aqiValueEl.textContent = "--";
     aqiTextEl.textContent = "AQI 服务暂不可用";
   }
+}
+
+async function fetchWeather(lat, lon, options = {}) {
+  const forceNetwork = Boolean(options.forceNetwork);
+  const place = await reverseGeocode(lat, lon).catch(() => fallbackLocationContext(lat, lon));
+  const locationContext = place?.displayName ? place : fallbackLocationContext(lat, lon);
+  locationNameEl.textContent = locationContext.displayName;
+
+  if (locationContext.countryCode === "CN" && QWEATHER_API_KEY) {
+    try {
+      await fetchQWeather(lat, lon, { forceNetwork });
+      return;
+    } catch {
+      // Fallback to Open-Meteo when QWeather fails.
+    }
+  }
+
+  await fetchOpenMeteo(lat, lon, { forceNetwork });
 }
 function setWeatherRefreshButtonState(isLoading) {
   if (!weatherRefreshBtnEl) return;
@@ -693,6 +1095,9 @@ async function refreshWeather(options = {}) {
     aqiTextEl.textContent = "网络不可用";
     weatherVisualEl.className = "weather-visual state-fog";
     forecastListEl.innerHTML = "";
+    latestForecastMode = "";
+    latestOpenMeteoDaily = null;
+    latestQWeatherDaily = [];
   } finally {
     setWeatherRefreshButtonState(false);
   }
@@ -718,11 +1123,20 @@ document.addEventListener("visibilitychange", () => {
 initClockDial();
 applySettings();
 setupSettings();
+setupForecastLayoutObserver();
 startClock();
 renderCalendar();
 refreshWeather();
 startWeatherRefreshTimer();
 registerServiceWorker();
+
+
+
+
+
+
+
+
 
 
 
