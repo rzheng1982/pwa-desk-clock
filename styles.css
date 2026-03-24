@@ -1125,3 +1125,20 @@ body[data-theme="mono"] .bg-layer {
     font-size: clamp(195px, 36vmin, 450px);
   }
 }
+
+/* iPad alignment fix: keep digital clock visually centered across fallback fonts */
+.clock-time {
+  display: block;
+  width: 100%;
+  text-align: center;
+  justify-self: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .clock-time {
+    font-size: clamp(150px, 26vmin, 260px);
+    letter-spacing: 0.06em;
+  }
+}
